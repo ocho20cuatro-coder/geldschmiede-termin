@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geldschmiede von und zu Barton – Terminbuchung</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #0a0a0f;
+            color: #e8e0d0;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        header {
+            background: linear-gradient(135deg, #0a0a0f 0%, #1a1410 100%);
+            border-bottom: 1px solid #c9a84c33;
+            padding: 24px 40px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #c9a84c, #f0d080);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        header h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #c9a84c, #f0d080);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        header p {
+            font-size: 0.8rem;
+            color: #888;
+            margin-top: 2px;
+        }
+
+        /* Main layout */
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 32px;
+        }
+
+        @media (max-width: 768px) {
+            .container { grid-template-columns: 1fr; }
+            header { padding: 20px; }
+        }
+
+        /* Cards */
+        .card {
+            background: #13131a;
+            border: 1px solid #c9a84c22;
+            border-radius: 20px;
+            padding: 28px;
+        }
+
+        .card h2 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #c9a84c;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Calendar */
+        .calendar-nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .calendar-nav button {
+            background: #1e1e2a;
+            border: 1px solid #c9a84c33;
+            color: #c9a84c;
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+
+        .calendar-nav button:hover {
+            background: #c9a84c22;
+        }
+
+        .calendar-nav span {
+            font-weight: 600;
+            font-size: 1rem;
+            color: #e8e0d0;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+        }
+
+        .calendar-day-header {
+            text-align: center;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: #666;
+            padding: 4px;
+            text-transform: uppercase;
+        }
+
+        .calendar-day {
+            text-align: center;
+            padding: 8px 4px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .calendar-day:hover:not(.disabled):not(.empty) {
+            background: #c9a84c22;
+            border-color: #c9a84c44;
+        }
+
+        .calendar-day.selected {
+            background: linear-gradient(135deg, #c9a84c, #f0d080);
+            color: #0a0a0f;
+            font-weight: 700;
+        }
+
+        .calendar-day.today {
+            border-color: #c9a84c66;
+            color: #c9a84c;
+        }
+
+        .calendar-day.disabled {
+            color: #333;
+            cursor: not-allowed;
+        }
+
+        .calendar-day.empty {
+            cursor: default;
+        }
+
+        .calendar-day.weekend {
+            color: #444;
+            cursor: not-allowed;
+        }
+
+        /* Time slots */
+        .slots-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .slot {
+            padding: 10px 6px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .slot.available {
+            background: #1e1e2a;
+            border-color: #c9a84c44;
+            color: #c9a84c;
+        }
+
+        .slot.available:hover {
+            background: #c9a84c22;
+            border-color: #c9a84c;
+            transform: translateY(-1px);
+        }
+
+        .slot.selected {
+            background: linear-gradient(135deg, #c9a84c, #f0d080);
+            color: #0a0a0f;
+            border-color: transparent;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px #c9a84c44;
+        }
+
+        .slot.booked {
+            background: #1a1a1a;
+            border-color: #333;
+            color: #444;
+            cursor: not-allowed;
+            text-decoration: line-through;
+        }
+
+        .slot-placeholder {
+            text-align: center;
+            color: #555;
+            font-size: 0.85rem;
+            padding: 20px;
+            grid-column: 1/-1;
+        }
+
+        /* Form */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #c9a84c;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-group label span {
+            color: #888;
+            font-weight: 400;
+            text-transform: none;
+            letter-spacing: 0;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            background: #1e1e2a;
+            border: 1px solid #c9a84c33;
+            border-radius: 10px;
+            padding: 12px 14px;
+            color: #e8e0d0;
+            font-size: 0.9rem;
+            font-family: inherit;
+            transition: border-color 0.2s;
+            outline: none;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            border-color: #c9a84c;
+            background: #1e1e2a;
+        }
+
+        .form-group input::placeholder,
+        .form-group textarea::placeholder {
+            color: #555;
+        }
+
+        .form-group textarea {
+            height: 90px;
+            resize: vertical;
+        }
+
+        /* Booking summary */
+        .booking-summary {
+            background: #1e1e2a;
+            border: 1px solid #c9a84c33;
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 16px;
+            font-size: 0.85rem;
+        }
+
+        .booking-summary .summary-label {
+            color: #888;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+
+        .booking-summary .summary-value {
+            color: #c9a84c;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        /* Submit button */
+        .btn-submit {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #c9a84c, #f0d080);
+            color: #0a0a0f;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px #c9a84c44;
+        }
+
+        .btn-submit:disabled {
+            background: #333;
+            color: #666;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Legend */
+        .legend {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            color: #888;
+        }
+
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+        }
+
+        .legend-dot.available { background: #c9a84c44; border: 1px solid #c9a84c; }
+        .legend-dot.booked { background: #1a1a1a; border: 1px solid #333; }
+        .legend-dot.selected { background: linear-gradient(135deg, #c9a84c, #f0d080); }
+
+        /* Success state */
+        .success-overlay {
+            display: none;
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .success-icon {
+            font-size: 3rem;
+            margin-bottom: 16px;
+        }
+
+        .success-overlay h3 {
+            font-size: 1.3rem;
+            color: #c9a84c;
+            margin-bottom: 8px;
+        }
+
+        .success-overlay p {
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        /* Loading spinner */
+        .spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #0a0a0f44;
+            border-top: 2px solid #0a0a0f;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .no-date-selected {
+            text-align: center;
+            color: #555;
+            padding: 30px 0;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo-icon">⚜️</div>
+    <div>
+        <h1>Geldschmiede von und zu Barton</h1>
+        <p>Exklusive Finanzberatung – Terminvereinbarung</p>
+    </div>
+</header>
+
+<div class="container">
+    <!-- LEFT: Calendar + Slots -->
+    <div>
+        <div class="card">
+            <h2>📅 Datum wählen</h2>
+            <div class="calendar-nav">
+                <button onclick="changeMonth(-1)">‹</button>
+                <span id="monthLabel"></span>
+                <button onclick="changeMonth(1)">›</button>
+            </div>
+            <div class="calendar-grid" id="calendarGrid"></div>
+        </div>
+
+        <div class="card" style="margin-top: 20px;">
+            <h2>🕐 Uhrzeit wählen</h2>
+            <div class="legend">
+                <div class="legend-item"><div class="legend-dot available"></div> Verfügbar</div>
+                <div class="legend-item"><div class="legend-dot booked"></div> Gebucht</div>
+                <div class="legend-item"><div class="legend-dot selected"></div> Ausgewählt</div>
+            </div>
+            <div id="slotsContainer">
+                <div class="no-date-selected">← Bitte zuerst ein Datum auswählen</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT: Form -->
+    <div class="card">
+        <h2>✍️ Ihre Angaben</h2>
+
+        <div class="booking-summary" id="bookingSummary">
+            <div class="summary-label">Ausgewählter Termin</div>
+            <div class="summary-value" id="summaryText">Noch kein Termin ausgewählt</div>
+        </div>
+
+        <form id="bookingForm">
+            <div class="form-group">
+                <label>Name *</label>
+                <input type="text" id="fieldName" placeholder="Max Mustermann" required>
+            </div>
+            <div class="form-group">
+                <label>E-Mail *</label>
+                <input type="email" id="fieldEmail" placeholder="max@beispiel.de" required>
+            </div>
+            <div class="form-group">
+                <label>Telefon *</label>
+                <input type="tel" id="fieldPhone" placeholder="+49 123 456789" required>
+            </div>
+            <div class="form-group">
+                <label>Firma <span>(optional)</span></label>
+                <input type="text" id="fieldCompany" placeholder="Mustermann GmbH">
+            </div>
+            <div class="form-group">
+                <label>Nachricht <span>(optional)</span></label>
+                <textarea id="fieldMessage" placeholder="Womit kann ich Ihnen helfen?"></textarea>
+            </div>
+
+            <button type="submit" class="btn-submit" id="submitBtn" disabled>
+                Termin buchen
+            </button>
+        </form>
+
+        <div class="success-overlay" id="successOverlay">
+            <div class="success-icon">✅</div>
+            <h3>Termin bestätigt!</h3>
+            <p id="successDetails"></p>
+            <p style="margin-top: 12px; color: #666;">Sie erhalten in Kürze eine Bestätigungsmail.</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ─── CONFIG ────────────────────────────────────────────────────────
+    const N8N_WEBHOOK_URL = 'DEINE_N8N_WEBHOOK_URL_HIER'; // ← hier eintragen
+
+    // Slots pro Tag: Mo-Do 09-17 (18 exkl.), Fr 09-15 (16 exkl.)
+    const SLOTS_WEEKDAY = ['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00'];
+    const SLOTS_FRIDAY  = ['09:00','10:00','11:00','12:00','13:00','14:00','15:00'];
+
+    // Simulierte gebuchte Slots (wird später durch n8n API ersetzt)
+    // Format: { "2026-05-27": ["10:00","14:00"] }
+    let bookedSlots = {};
+
+    // ─── STATE ─────────────────────────────────────────────────────────
+    let currentDate = new Date();
+    let selectedDate = null;
+    let selectedTime = null;
+
+    const monthNames = ['Januar','Februar','März','April','Mai','Juni',
+                        'Juli','August','September','Oktober','November','Dezember'];
+    const dayNames = ['So','Mo','Di','Mi','Do','Fr','Sa'];
+
+    // ─── CALENDAR ──────────────────────────────────────────────────────
+    function renderCalendar() {
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth();
+        document.getElementById('monthLabel').textContent = `${monthNames[month]} ${year}`;
+
+        const grid = document.getElementById('calendarGrid');
+        grid.innerHTML = '';
+
+        // Day headers
+        dayNames.forEach(d => {
+            const el = document.createElement('div');
+            el.className = 'calendar-day-header';
+            el.textContent = d;
+            grid.appendChild(el);
+        });
+
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const today = new Date();
+        today.setHours(0,0,0,0);
+
+        // Empty cells
+        for (let i = 0; i < firstDay; i++) {
+            const el = document.createElement('div');
+            el.className = 'calendar-day empty';
+            grid.appendChild(el);
+        }
+
+        for (let d = 1; d <= daysInMonth; d++) {
+            const date = new Date(year, month, d);
+            const dow = date.getDay(); // 0=So, 6=Sa
+            const el = document.createElement('div');
+            el.textContent = d;
+
+            const dateStr = formatDate(date);
+            const isWeekend = (dow === 0 || dow === 6);
+            const isPast = date < today;
+            const isToday = date.getTime() === today.getTime();
+            const isSelected = selectedDate === dateStr;
+
+            if (isWeekend || isPast) {
+                el.className = 'calendar-day disabled';
+            } else if (isSelected) {
+                el.className = 'calendar-day selected';
+            } else if (isToday) {
+                el.className = 'calendar-day today';
+            } else {
+                el.className = 'calendar-day';
+            }
+
+            if (!isWeekend && !isPast) {
+                el.addEventListener('click', () => selectDate(dateStr, dow));
+            }
+
+            grid.appendChild(el);
+        }
+    }
+
+    function changeMonth(dir) {
+        currentDate.setMonth(currentDate.getMonth() + dir);
+        renderCalendar();
+    }
+
+    function formatDate(date) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth()+1).padStart(2,'0');
+        const d = String(date.getDate()).padStart(2,'0');
+        return `${y}-${m}-${d}`;
+    }
+
+    function formatDateDE(dateStr) {
+        const [y,m,d] = dateStr.split('-');
+        return `${d}.${m}.${y}`;
+    }
+
+    function getDayName(dow) {
+        return ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'][dow];
+    }
+
+    // ─── DATE SELECTION ────────────────────────────────────────────────
+    function selectDate(dateStr, dow) {
+        selectedDate = dateStr;
+        selectedTime = null;
+        renderCalendar();
+        renderSlots(dow);
+        updateSummary();
+        updateSubmitBtn();
+
+        // Fetch booked slots from n8n (optional — aktivieren wenn Webhook steht)
+        // fetchBookedSlots(dateStr);
+    }
+
+    // ─── SLOTS ─────────────────────────────────────────────────────────
+    function renderSlots(dow) {
+        const container = document.getElementById('slotsContainer');
+        container.innerHTML = '';
+
+        const slots = (dow === 5) ? SLOTS_FRIDAY : SLOTS_WEEKDAY;
+        const booked = bookedSlots[selectedDate] || [];
+
+        const grid = document.createElement('div');
+        grid.className = 'slots-container';
+
+        slots.forEach(time => {
+            const el = document.createElement('div');
+            el.textContent = time + ' Uhr';
+
+            if (booked.includes(time)) {
+                el.className = 'slot booked';
+            } else if (selectedTime === time) {
+                el.className = 'slot selected';
+            } else {
+                el.className = 'slot available';
+                el.addEventListener('click', () => selectTime(time, dow));
+            }
+            grid.appendChild(el);
+        });
+
+        container.appendChild(grid);
+    }
+
+    function selectTime(time, dow) {
+        selectedTime = time;
+        renderSlots(dow || new Date(selectedDate + 'T12:00:00').getDay());
+        updateSummary();
+        updateSubmitBtn();
+    }
+
+    // ─── SUMMARY ───────────────────────────────────────────────────────
+    function updateSummary() {
+        const el = document.getElementById('summaryText');
+        if (selectedDate && selectedTime) {
+            const dow = new Date(selectedDate + 'T12:00:00').getDay();
+            el.textContent = `${getDayName(dow)}, ${formatDateDE(selectedDate)} um ${selectedTime} Uhr`;
+            el.style.color = '#c9a84c';
+        } else if (selectedDate) {
+            el.textContent = `${formatDateDE(selectedDate)} – bitte Uhrzeit wählen`;
+            el.style.color = '#888';
+        } else {
+            el.textContent = 'Noch kein Termin ausgewählt';
+            el.style.color = '#555';
+        }
+    }
+
+    function updateSubmitBtn() {
+        const btn = document.getElementById('submitBtn');
+        btn.disabled = !(selectedDate && selectedTime);
+    }
+
+    // ─── FORM SUBMIT ───────────────────────────────────────────────────
+    document.getElementById('bookingForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const name    = document.getElementById('fieldName').value.trim();
+        const email   = document.getElementById('fieldEmail').value.trim();
+        const phone   = document.getElementById('fieldPhone').value.trim();
+        const company = document.getElementById('fieldCompany').value.trim();
+        const message = document.getElementById('fieldMessage').value.trim();
+
+        if (!selectedDate || !selectedTime) {
+            alert('Bitte wählen Sie zuerst ein Datum und eine Uhrzeit.');
+            return;
+        }
+
+        const btn = document.getElementById('submitBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<div class="spinner" style="display:inline-block"></div>';
+
+        const payload = {
+            kundenname:      name,
+            email:           email,
+            telefon:         phone,
+            firma:           company,
+            nachricht:       message,
+            termin_datum:    formatDateDE(selectedDate),
+            termin_uhrzeit:  selectedTime,
+            status:          'Neu'
+        };
+
+        try {
+            const response = await fetch(N8N_WEBHOOK_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+                showSuccess(name, payload.termin_datum, selectedTime);
+            } else {
+                throw new Error('Server Fehler');
+            }
+        } catch (err) {
+            // Für Tests ohne Webhook — direkt Erfolg zeigen
+            showSuccess(name, payload.termin_datum, selectedTime);
+            // Im Produktivbetrieb stattdessen:
+            // alert('Fehler beim Senden. Bitte versuchen Sie es erneut.');
+            // btn.disabled = false;
+            // btn.textContent = 'Termin buchen';
+        }
+    });
+
+    function showSuccess(name, datum, zeit) {
+        document.getElementById('bookingForm').style.display = 'none';
+        document.getElementById('bookingSummary').style.display = 'none';
+        const overlay = document.getElementById('successOverlay');
+        overlay.style.display = 'block';
+        document.getElementById('successDetails').textContent =
+            `${name}, Ihr Termin am ${datum} um ${zeit} Uhr wurde erfolgreich gebucht.`;
+    }
+
+    // ─── OPTIONAL: Fetch booked slots from n8n ─────────────────────────
+    async function fetchBookedSlots(dateStr) {
+        try {
+            const res = await fetch(`${N8N_WEBHOOK_URL}?action=check&date=${dateStr}`);
+            const data = await res.json();
+            if (data.bookedSlots) {
+                bookedSlots[dateStr] = data.bookedSlots;
+                const dow = new Date(dateStr + 'T12:00:00').getDay();
+                renderSlots(dow);
+            }
+        } catch(e) { /* silent fail */ }
+    }
+
+    // ─── INIT ──────────────────────────────────────────────────────────
+    renderCalendar();
+</script>
+</body>
+</html>
