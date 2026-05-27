@@ -322,7 +322,9 @@
 </div>
 
 <script>
-    const N8N_WEBHOOK_URL = 'https://faculty-vary-inspiration-objects.trycloudflare.com/webhook/terminbuchung';
+    const N8N_WEBHOOK_URL_BUCHUNG = 'https://faculty-vary-inspiration-objects.trycloudflare.com/webhook/terminbuchung';
+    // HIER DIE NEUE URL FÜR WORKFLOW 1 EINTRAGEN:
+    const N8N_WEBHOOK_URL_VERFUEGBARKEIT = 'https://faculty-vary-inspiration-objects.trycloudflare.com/webhook/verfuegbarkeit';
 
     const SLOTS_WEEKDAY = ['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00'];
     const SLOTS_FRIDAY  = ['09:00','10:00','11:00','12:00','13:00','14:00','15:00'];
@@ -331,13 +333,13 @@
     let currentDate = new Date();
     let selectedDate = null;
     let selectedTime = null;
+    let isLoadingSlots = false;
 
     const monthNames = ['Januar','Februar','März','April','Mai','Juni',
                         'Juli','August','September','Oktober','November','Dezember'];
     const dayNames = ['So','Mo','Di','Mi','Do','Fr','Sa'];
 
     // ─── HILFSFUNKTIONEN ───────────────────────────────────────────────
-
     function formatDate(date) {
         const y = date.getFullYear();
         const m = String(date.getMonth()+1).padStart(2,'0');
@@ -354,10 +356,8 @@
         return ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'][dow];
     }
 
-    // Gibt die aktuelle Uhrzeit in Deutschland zurück (CET/CEST)
     function getCurrentHourDE() {
         const now = new Date();
-        // Zeitzone Europe/Berlin berücksichtigen
         const deTime = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Berlin' }));
         return deTime.getHours() + deTime.getMinutes() / 60;
     }
@@ -368,18 +368,39 @@
         return formatDate(deTime);
     }
 
-    // Prüft ob ein Slot für den heutigen Tag bereits vergangen ist
-    // Slot gilt als vergangen wenn aktuelle DE-Zeit >= Slot-Stunde
     function isSlotPast(dateStr, slotTime) {
         if (dateStr !== getTodayStr()) return false;
         const slotHour = parseInt(slotTime.split(':')[0]);
         const currentHour = getCurrentHourDE();
-        // Slot muss mindestens 1 Stunde in der Zukunft liegen
         return currentHour >= slotHour;
     }
 
-    // ─── KALENDER ──────────────────────────────────────────────────────
+    // ─── DATEN ABRUFEN (NEU!) ──────────────────────────────────────────
+    async function fetchVerfuegbarkeit(dateStr, dow) {
+        const container = document.getElementById('slotsContainer');
+        container.innerHTML = '<div class="no-date-selected"><div class="spinner" style="border-color:#c9a84c33; border-top-color:#c9a84c;"></div> Lade Verfügbarkeit...</div>';
+        
+        isLoadingSlots = true;
+        const dateDE = formatDateDE(dateStr); // z.B. 28.05.2026
 
+        try {
+            // N8N anfragen
+            const response = await fetch(`${N8N_WEBHOOK_URL_VERFUEGBARKEIT}?datum=${dateDE}`);
+            const data = await response.json();
+            
+            // Die zurückgegebenen belegten Zeiten speichern
+            bookedSlots[dateStr] = data.belegte_zeiten || [];
+        } catch (error) {
+            console.error("Fehler beim Laden der Termine:", error);
+            // Wenn n8n nicht erreichbar ist, tun wir so, als wäre nichts gebucht
+            if (!bookedSlots[dateStr]) bookedSlots[dateStr] = [];
+        }
+
+        isLoadingSlots = false;
+        renderSlots(dow);
+    }
+
+    // ─── KALENDER ──────────────────────────────────────────────────────
     function renderCalendar() {
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth();
@@ -417,7 +438,6 @@
             const dateStr = formatDate(date);
             const isWeekend = (dow === 0 || dow === 6);
 
-            // Datum ohne Uhrzeit für Vergleich
             const dateOnly = new Date(year, month, d);
             dateOnly.setHours(0,0,0,0);
             const isPast = dateOnly < todayDE;
@@ -425,16 +445,7 @@
             const isToday = dateStr === getTodayStr();
             const isSelected = selectedDate === dateStr;
 
-            // Für heute: prüfen ob noch mindestens 1 Slot verfügbar
-            let todayAllPast = false;
-            if (isToday) {
-                const slots = (dow === 5) ? SLOTS_FRIDAY : SLOTS_WEEKDAY;
-                const booked = bookedSlots[dateStr] || [];
-                const available = slots.filter(s => !isSlotPast(dateStr, s) && !booked.includes(s));
-                todayAllPast = available.length === 0;
-            }
-
-            if (isWeekend || isPast || todayAllPast) {
+            if (isWeekend || isPast) {
                 el.className = 'calendar-day disabled';
             } else if (isSelected) {
                 el.className = 'calendar-day selected';
@@ -456,19 +467,21 @@
     }
 
     // ─── DATUM WÄHLEN ──────────────────────────────────────────────────
-
     function selectDate(dateStr, dow) {
         selectedDate = dateStr;
         selectedTime = null;
         renderCalendar();
-        renderSlots(dow);
         updateSummary();
         updateSubmitBtn();
+        
+        // Neu: Daten von n8n abrufen!
+        fetchVerfuegbarkeit(dateStr, dow);
     }
 
     // ─── SLOTS ─────────────────────────────────────────────────────────
-
     function renderSlots(dow) {
+        if (isLoadingSlots) return; // Nicht rendern, wenn wir gerade laden
+        
         const container = document.getElementById('slotsContainer');
         container.innerHTML = '';
 
@@ -510,7 +523,6 @@
     }
 
     // ─── ZUSAMMENFASSUNG ───────────────────────────────────────────────
-
     function updateSummary() {
         const el = document.getElementById('summaryText');
         if (selectedDate && selectedTime) {
@@ -531,7 +543,6 @@
     }
 
     // ─── FORMULAR ──────────────────────────────────────────────────────
-
     document.getElementById('bookingForm').addEventListener('submit', async (e) => {
         e.preventDefault();
 
@@ -562,7 +573,7 @@
         };
 
         try {
-            const response = await fetch(N8N_WEBHOOK_URL, {
+            const response = await fetch(N8N_WEBHOOK_URL_BUCHUNG, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
